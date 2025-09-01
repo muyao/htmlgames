@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        3D Engine
+    </title>
+</head>
+
+<body>
+    <canvas id="canvas" tabindex="0" style="border:1px solid black" onclick="Sys.start();"
+        onkeydown="Controls.keyDown();" onkeyup="Controls.keyUp();"></canvas>
+    <p id="debug"></p>
+    <script>
+        "use strict";
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 960;
+        canvas.height = 720;
+        ctx.save();
+
+        // =======================================================================================
+        // ------- CODE AREA -------
+
+        const Sys = {
+            hasStarted: false,
+            time: Date.now(),
+            mspt: 33,
+            fps: 30,
+            trisRendered: 0,
+
+            start: function () {
+                if (!Sys.hasStarted) {
+                    Sys.hasStarted = true;
+                }
+            },
+
+            updData: function () {
+                Sys.mspt = Date.now() - this.time;
+                Sys.fps = Math.floor(1000 / Sys.mspt);
+                Sys.time = Date.now();
+
+                Sys.trisRendered = 0;
+            },
+
+            tick: function () {
+                Sys.updData();
+
+                Debug.set("");
+                Debug.log("MSPT: " + Sys.mspt);
+                Debug.log("FPS: " + Sys.fps);
+                Debug.log("Time: " + Math.floor(Sys.time));
+                Debug.log("Has Started: " + Sys.hasStarted);
+                Debug.log("Keys: [" + Controls.keys + "]");
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (Sys.hasStarted) {
+
+
+                    Player.vy -= 0.022;
+                    Controls.checkControls();
+
+                    Player.vx *= 0.8;
+                    Player.vy *= 0.98;
+                    Player.vz *= 0.8;
+
+                    Player.move(Player.vx, Player.vy, Player.vz);
+
+                    Camera.x = Player.x;
+                    Camera.y = Player.y + 1.62;
+                    Camera.z = Player.z;
+                    Camera.pitch = Player.pitch;
+                    Camera.yaw = Player.yaw;
+                    Camera.roll = Player.roll;
+
+                    Player.selectBlock();
+
+                    ctx.save();
+                    ctx.setTransform(canvas.width / Srcs.misc.sky[0].width, 0, 0, canvas.height / Srcs.misc.sky[0].height, 0, 0);
+                    ctx.drawImage(Srcs.misc.sky[0], 0, 0);
+                    ctx.restore();
+
+                    Render.updateAll();
+                    Render.render();
+
+                    Render.face(Srcs.misc.select[0], "+x", Player.selX, Player.selY, Player.selZ);
+                    Render.face(Srcs.misc.select[0], "-x", Player.selX, Player.selY, Player.selZ);
+                    Render.face(Srcs.misc.select[0], "+y", Player.selX, Player.selY, Player.selZ);
+                    Render.face(Srcs.misc.select[0], "-y", Player.selX, Player.selY, Player.selZ);
+                    Render.face(Srcs.misc.select[0], "+z", Player.selX, Player.selY, Player.selZ);
+                    Render.face(Srcs.misc.select[0], "-z", Player.selX, Player.selY, Player.selZ);
+
+                    Debug.log("Tris Rendered: " + Sys.trisRendered);
+                    Debug.log("Selected Block: " + Player.selX + ", " + Player.selY + ", " + Player.selZ);
+
+                } else {
+
+                    ctx.font = "96px serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("Click to Start", canvas.width / 2, canvas.height / 2);
+
+                }
+            },
+        };
+
+        const Debug = {
+            set: function (setTo) {
+                document.getElementById("debug").innerHTML = setTo;
+            },
+
+            log: function (log) {
+                document.getElementById("debug").innerHTML += "<br>";
+                document.getElementById("debug").innerHTML += log;
+            },
+        };
+
+        const Controls = {
+            keys: [],
+
+            keyDown: function () {
+                if (!Controls.keys.includes(event.key)) {
+                    Controls.keys.push(event.key);
+                }
+            },
+
+            keyUp: function () {
+                Controls.keys.splice(Controls.keys.indexOf(event.key), 1);
+            },
+
+            checkControls: function () {
+                if (Controls.keys.includes("j")) {
+                    Player.yaw -= 0.05;
+                }
+                if (Controls.keys.includes("l")) {
+                    Player.yaw += 0.05;
+                }
+                if (Controls.keys.includes("k")) {
+                    Player.pitch -= 0.05;
+                }
+                if (Controls.keys.includes("i")) {
+                    Player.pitch += 0.05;
+                }
+                if (Controls.keys.includes("s")) {
+                    Player.vx += Player.walkSpeed * Math.sin(Player.yaw);
+                    Player.vz += Player.walkSpeed * Math.cos(Player.yaw);
+                }
+                if (Controls.keys.includes("w")) {
+                    Player.vx -= Player.walkSpeed * Math.sin(Player.yaw);
+                    Player.vz -= Player.walkSpeed * Math.cos(Player.yaw);
+                }
+                if (Controls.keys.includes("d")) {
+                    Player.vx += Player.walkSpeed * Math.sin(Player.yaw - Math.PI / 2);
+                    Player.vz += Player.walkSpeed * Math.cos(Player.yaw - Math.PI / 2);
+                }
+                if (Controls.keys.includes("a")) {
+                    Player.vx -= Player.walkSpeed * Math.sin(Player.yaw - Math.PI / 2);
+                    Player.vz -= Player.walkSpeed * Math.cos(Player.yaw - Math.PI / 2);
+                }
+                if (Controls.keys.includes("e")) {
+                    Player.vy += 0.1;
+                }
+                if (Controls.keys.includes("q")) {
+                    if (!Controls.keys.includes("e")) {
+                        Player.vy = 0;
+                    }
+                }
+                if (Controls.keys.includes(" ")) {
+                    if (Player.isOnGround) {
+                        Player.vy = 0.26;
+                    }
+                }
+            }
+        };
+
+        const Player = {
+            x: 3.5,
+            y: 12.5,
+            z: 0,
+            pitch: 0,
+            yaw: Math.PI,
+            roll: 0,
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            walkSpeed: 0.035,
+            isOnGround: false,
+            selX: undefined,
+            selY: undefined,
+            selZ: undefined,
+
+            move: function (dx, dy, dz) {
+                Player.x += dx;
+                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.6, 1.8, 0.8)) {
+                    Player.x -= dx;
+                    Player.vx = 0;
+                }
+                Player.y += dy;
+                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.6, 1.8, 0.8)) {
+                    Player.y -= dy;
+                    Player.vy = 0;
+                    Player.isOnGround = true;
+                } else {
+                    Player.isOnGround = false;
+                }
+                Player.z += dz;
+                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.6, 1.8, 0.8)) {
+                    Player.z -= dz;
+                    Player.vz = 0;
+                }
+            },
+
+            ray: function (fromx, fromy, fromz, pitch, yaw, maxd) {
+                let x = fromx;
+                let y = fromy;
+                let z = fromz;
+                let dx = 0;
+                let dy = 0;
+                let dz = 0;
+                while (Engine.dist(dx, dy, dz) <= maxd || World.getBlockDat(x, y, z)[0] === "block:air") {
+                    x += 0.1 * Math.cos(pitch) * Math.sin(yaw);
+                    y += 0.1 * Math.sin(pitch);
+                    z += 0.1 * Math.cos(pitch) * Math.cos(yaw);
+                    dx += 0.1 * Math.cos(pitch) * Math.sin(yaw);
+                    dy += 0.1 * Math.sin(pitch);
+                    dz += 0.1 * Math.cos(pitch) * Math.cos(yaw);
+                    return [Math.floor(x), Math.floor(y), Math.floor(z)];
+                }
+            },
+
+            selectBlock: function () {
+                let temp = Player.ray(Camera.x, Camera.y, Camera.z, Player.pitch, Player.yaw, 4.5);
+                Player.selX = temp[0];
+                Player.selY = temp[1];
+                Player.selZ = temp[2];
+            },
+        };
+
+        const EntEngine = {
+            hitbox: function (cx, by, cz, sx, sy, sz) {
+                let dat = undefined;
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        for (let k = 0; k < 4; k++) {
+                            dat = World.getBlockDat(Math.floor(cx - sx / 2 + i * sx / 3), Math.floor(by + j * sy / 3), Math.floor(cz - sz / 2 + k * sz / 3));
+                            if (!(dat[0] === "block:air")) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            },
+        };
+
+        const Camera = {
+            x: 0,
+            y: 0,
+            z: 0,
+            pitch: 0,
+            yaw: 0,
+            roll: 0,
+            fl: 350,
+        };
+
+        const Engine = {
+            rotate: function (x, y, ax, ay, a) {
+                return [
+                    (x - ax) * Math.cos(a) - (y - ay) * Math.sin(a) + ax,
+                    (x - ax) * Math.sin(a) + (y - ay) * Math.cos(a) + ay,
+                ];
+            },
+
+            fill: function (tlX, tlY, blX, blY, trX, trY, texture, tsX, tsY) {
+                ctx.save();
+                ctx.setTransform((trX - tlX) / tsX, (trY - tlY) / tsY, (blX - tlX) / tsX, (blY - tlY) / tsY, tlX, tlY);
+                ctx.drawImage(texture, 0, 0);
+                ctx.restore();
+
+                Sys.trisRendered += 1;
+            },
+
+            goTo: function (x, y, z) {
+                let tempX = x;
+                let tempY = y;
+                let tempZ = z;
+                let temp = Engine.rotate(tempX, tempZ, Camera.x, Camera.z, Camera.yaw);
+                tempX = temp[0];
+                tempZ = temp[1];
+                temp = Engine.rotate(tempZ, tempY, Camera.z, Camera.y, Camera.pitch);
+                tempZ = temp[0];
+                tempY = temp[1];
+                temp = Engine.rotate(tempY, tempX, Camera.y, Camera.x, Camera.roll);
+                tempY = temp[0];
+                tempX = temp[1];
+                if (tempZ - Camera.z < -0.1) {
+                    return [
+                        Camera.fl * (tempX - Camera.x) / (tempZ - Camera.z) + canvas.width / 2,
+                        Camera.fl * (tempY - Camera.y) / (tempZ - Camera.z) + canvas.height / 2,
+                    ];
+                } else {
+                    return false;
+                }
+            },
+
+            face: function (texture1, texture2, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4) {
+                let temp1 = Engine.goTo(x1, y1, z1);
+                if (!(temp1 === false)) {
+                    let temp2 = Engine.goTo(x2, y2, z2);
+                    if (!(temp2 === false)) {
+                        let temp3 = Engine.goTo(x3, y3, z3);
+                        if (!(temp3 === false)) {
+                            Engine.fill(temp1[0], temp1[1], temp2[0], temp2[1], temp3[0], temp3[1], texture1, 16, 16);
+                        }
+                    }
+                }
+                temp1 = Engine.goTo(x4, y4, z4);
+                if (!(temp1 === false)) {
+                    let temp3 = Engine.goTo(x2, y2, z2);
+                    if (!(temp3 === false)) {
+                        let temp2 = Engine.goTo(x3, y3, z3);
+                        if (!(temp2 === false)) {
+                            Engine.fill(temp1[0], temp1[1], temp2[0], temp2[1], temp3[0], temp3[1], texture2, 16, 16);
+                        }
+                    }
+                }
+            },
+
+            dist: function (x, y, z) {
+                return Math.sqrt(x ** 2 + y ** 2 + z ** 2);
+            },
+        };
+
+        const Render = {
+            faces: [],
+            updates: [],
+
+            updateAll: function () {
+                let updx = undefined;
+                let updy = undefined;
+                let updz = undefined;
+                for (let update of Render.updates) {
+                    updy = Math.floor(update / World.ysize ** 2);
+                    updz = Math.floor((update - World.ysize ** 2 * updy) / World.zsize);
+                    updx = update - World.ysize ** 2 * updy - World.zsize * updz;
+                    Render.updateBlock(updx, updy, updz);
+                }
+
+                Render.updates = [];
+                Render.orderedUpdates = [];
+            },
+
+            updateBlock: function (x, y, z) {
+                let thisBlock = World.getBlockDat(x, y, z)[0];
+                let thatBlock = World.getBlockDat(x + 1, y, z)[0]
+                if (thatBlock === "block:air") {
+                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+x", x, y, z])
+                }
+                thatBlock = World.getBlockDat(x - 1, y, z)[0]
+                if (thatBlock === "block:air") {
+                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-x", x, y, z])
+                }
+                thatBlock = World.getBlockDat(x, y + 1, z)[0]
+                if (thatBlock === "block:air") {
+                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+y", x, y, z])
+                }
+                thatBlock = World.getBlockDat(x, y - 1, z)[0]
+                if (thatBlock === "block:air") {
+                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-y", x, y, z])
+                }
+                thatBlock = World.getBlockDat(x, y, z + 1)[0]
+                if (thatBlock === "block:air") {
+                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+z", x, y, z])
+                }
+                thatBlock = World.getBlockDat(x, y, z - 1)[0]
+                if (thatBlock === "block:air") {
+                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-z", x, y, z])
+                }
+
+            },
+
+            addUpdate: function (x, y, z) {
+                if (!(World.getBlockDat(x, y, z)[0] === "block:air")) {
+                    if (!Render.updates.includes(World.ysize ** 2 * y + World.zsize * z + x)) {
+                        Render.updates.push(World.ysize ** 2 * y + World.zsize * z + x);
+                    }
+                }
+            },
+
+            render: function () {
+                Render.faces.sort(function (a, b) { return Engine.dist(b[2] - Camera.x, b[3] - Camera.y, b[4] - Camera.z) - Engine.dist(a[2] - Camera.x, a[3] - Camera.y, a[4] - Camera.z) })
+                for (let face of Render.faces) {
+                    Render.face(face[0], face[1], face[2], face[3], face[4]);
+                }
+            },
+
+            face: function (texture, axis, x, y, z) {
+                if (axis === "+z") {
+                    if (Camera.z > z + 1) {
+                        Engine.face(texture[0], texture[1], x, y + 1, z + 1, x, y, z + 1, x + 1, y + 1, z + 1, x + 1, y, z + 1);
+                    }
+                } else if (axis === "-z") {
+                    if (Camera.z < z) {
+                        Engine.face(texture[0], texture[1], x, y + 1, z, x, y, z, x + 1, y + 1, z, x + 1, y, z);
+                    }
+                } else if (axis === "+x") {
+                    if (Camera.x > x + 1) {
+                        Engine.face(texture[0], texture[1], x + 1, y + 1, z, x + 1, y, z, x + 1, y + 1, z + 1, x + 1, y, z + 1);
+                    }
+                } else if (axis === "-x") {
+                    if (Camera.x < x) {
+                        Engine.face(texture[0], texture[1], x, y + 1, z, x, y, z, x, y + 1, z + 1, x, y, z + 1);
+                    }
+                } else if (axis === "+y") {
+                    if (Camera.y > y + 1) {
+                        Engine.face(texture[4], texture[5], x + 1, y + 1, z, x, y + 1, z, x + 1, y + 1, z + 1, x, y + 1, z + 1);
+                    }
+                } else if (axis === "-y") {
+                    if (Camera.y < y) {
+                        Engine.face(texture[2], texture[3], x + 1, y, z, x, y, z, x + 1, y, z + 1, x, y, z + 1);
+                    }
+                } else {
+                    console.error("Render.face(): Wrong axis input in \"blockFace\" method: " + axis);
+                }
+            },
+        };
+
+        const World = {
+            xsize: 32,
+            ysize: 32,
+            zsize: 32,
+            blocks: [],
+
+            reset: function (xlen, ylen, zlen) {
+                World.blocks = [];
+                let layer = undefined;
+                let line = undefined;
+                for (let j = 0; j < ylen; j++) {
+                    layer = [];
+                    for (let k = 0; k < zlen; k++) {
+                        line = [];
+                        for (let i = 0; i < xlen; i++) {
+                            line.push(["block:air", false]);
+                        }
+                        layer.push(line);
+                    }
+                    World.blocks.push(layer);
+                }
+            },
+
+            getBlockDat: function (x, y, z) {
+                if (x < 0 || x >= World.xsize) {
+                    return ["block:air", false]
+                } else if (z < 0 || z >= World.zsize) {
+                    return ["block:air", false]
+                } else if (y < 0 || y >= World.xsize) {
+                    return ["block:air", false]
+                } else {
+                    return World.blocks[y][z][x]
+                }
+            },
+
+            setBlock: function (block, x, y, z) {
+                World.blocks[y][z][x][0] = block;
+                Render.addUpdate(x, y, z);
+                Render.addUpdate(x + 1, y, z);
+                Render.addUpdate(x - 1, y, z);
+                Render.addUpdate(x, y + 1, z);
+                Render.addUpdate(x, y - 1, z);
+                Render.addUpdate(x, y, z + 1);
+                Render.addUpdate(x, y, z - 1);
+            },
+        };
+
+        // =======================================================================================
+        // ------- TEXTURES -------
+        // To add new textures:
+        // 1. add texture to Srcs
+        // 2. add texture to texMap
+        // 3. assign src
+        // 4. map srcs texture to texMap
+
+        const Srcs = {
+            blocks: {
+                grass: [
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                ],
+
+                dirt: [
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                ],
+
+                stone: [
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                ],
+            },
+
+            misc: {
+                sky: [
+                    new Image(),
+                ],
+
+                select: [
+                    new Image(),
+                ],
+            },
+
+            sys: {
+                blockTexMap: [
+                    "block:air", undefined,
+                    "block:grass", undefined,
+                    "block:dirt", undefined,
+                    "block:stone", undefined,
+                ],
+            },
+        };
+
+        Srcs.blocks.grass[0].src = "block-grassSide-tl.png";
+        Srcs.blocks.grass[1].src = "block-grassSide-br.png";
+        Srcs.blocks.grass[2].src = "block-grassBottom-tl.png";
+        Srcs.blocks.grass[3].src = "block-grassBottom-br.png";
+        Srcs.blocks.grass[4].src = "block-grassTop-tl.png";
+        Srcs.blocks.grass[5].src = "block-grassTop-br.png";
+
+        Srcs.blocks.dirt[0].src = "block-dirtSide-tl.png";
+        Srcs.blocks.dirt[1].src = "block-dirtSide-br.png";
+        Srcs.blocks.dirt[2].src = "block-dirtBottom-tl.png";
+        Srcs.blocks.dirt[3].src = "block-dirtBottom-br.png";
+        Srcs.blocks.dirt[4].src = "block-dirtTop-tl.png";
+        Srcs.blocks.dirt[5].src = "block-dirtTop-br.png";
+
+        Srcs.blocks.stone[0].src = "block-stoneSide-tl.png";
+        Srcs.blocks.stone[1].src = "block-stoneSide-br.png";
+        Srcs.blocks.stone[2].src = "block-stoneBottom-tl.png";
+        Srcs.blocks.stone[3].src = "block-stoneBottom-br.png";
+        Srcs.blocks.stone[4].src = "block-stoneTop-tl.png";
+        Srcs.blocks.stone[5].src = "block-stoneTop-br.png";
+
+        Srcs.misc.sky[0].src = "misc-sky.png";
+        Srcs.misc.select[0].src = "misc-select.png";
+
+        Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:air") + 1] = null;
+        Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:grass") + 1] = Srcs.blocks.grass;
+        Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:dirt") + 1] = Srcs.blocks.dirt;
+        Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:stone") + 1] = Srcs.blocks.stone;
+
+        // =======================================================================================
+        // ------- WORLD -------
+        // keep World.reset() at the top
+
+        World.reset(World.xsize, World.ysize, World.zsize);
+
+        for (let i = 0; i < World.xsize; i++) {
+            for (let j = 0; j < World.zsize; j++) {
+                World.setBlock("block:stone", i, 0, j)
+            }
+        }
+        for (let i = 0; i < World.xsize; i++) {
+            for (let j = 0; j < World.zsize; j++) {
+                World.setBlock("block:stone", i, 1, j)
+            }
+        }
+        for (let i = 0; i < World.xsize; i++) {
+            for (let j = 0; j < World.zsize; j++) {
+                World.setBlock("block:dirt", i, 2, j)
+            }
+        }
+        for (let i = 0; i < World.xsize; i++) {
+            for (let j = 0; j < World.zsize; j++) {
+                World.setBlock("block:grass", i, 3, j)
+            }
+        }
+
+        World.setBlock("block:stone", 3, 4, 3);
+        World.setBlock("block:stone", 4, 4, 3);
+        World.setBlock("block:stone", 4, 5, 3);
+
+        // =======================================================================================
+
+        Render.updateAll();
+
+        setInterval(Sys.tick, 33);
+
+    </script>
+</body>
+
+</html>
