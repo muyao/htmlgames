@@ -3,7 +3,7 @@
 
 <head>
     <title>
-        3D Engine
+        JSCraft
     </title>
 </head>
 
@@ -44,7 +44,7 @@
                 Sys.trisRendered = 0;
             },
 
-            tick: function () {
+            tick: function () { // tick
                 Sys.updData();
 
                 Debug.set("");
@@ -58,9 +58,10 @@
 
                 if (Sys.hasStarted) {
 
+                    Controls.checkControls();
 
                     Player.vy -= 0.022;
-                    Controls.checkControls();
+                    Player.cleanAngs();
 
                     Player.vx *= 0.8;
                     Player.vy *= 0.98;
@@ -75,6 +76,13 @@
                     Camera.yaw = Player.yaw;
                     Camera.roll = Player.roll;
 
+                    if (Player.breakProgress > 7) {
+                        Player.breakBlock(Player.selX, Player.selY, Player.selZ);
+                    }
+                    if (Player.willPlace) {
+                        Player.placeBlock(Player.selAxis, Player.selX, Player.selY, Player.selZ);
+                    }
+                    EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, true);
                     Player.selectBlock();
 
                     ctx.save();
@@ -83,17 +91,17 @@
                     ctx.restore();
 
                     Render.updateAll();
+
                     Render.render();
 
-                    Render.face(Srcs.misc.select[0], "+x", Player.selX, Player.selY, Player.selZ);
-                    Render.face(Srcs.misc.select[0], "-x", Player.selX, Player.selY, Player.selZ);
-                    Render.face(Srcs.misc.select[0], "+y", Player.selX, Player.selY, Player.selZ);
-                    Render.face(Srcs.misc.select[0], "-y", Player.selX, Player.selY, Player.selZ);
-                    Render.face(Srcs.misc.select[0], "+z", Player.selX, Player.selY, Player.selZ);
-                    Render.face(Srcs.misc.select[0], "-z", Player.selX, Player.selY, Player.selZ);
+                    if (!(Player.selAxis === undefined)) {
+                        Render.face(Srcs.misc.select, Player.selAxis, Player.selX, Player.selY, Player.selZ);
+                    }
+
+                    ctx.drawImage(Srcs.ui.crosshair[0], (canvas.width - Srcs.ui.crosshair[0].width) / 2, (canvas.height - Srcs.ui.crosshair[0].height) / 2);
 
                     Debug.log("Tris Rendered: " + Sys.trisRendered);
-                    Debug.log("Selected Block: " + Player.selX + ", " + Player.selY + ", " + Player.selZ);
+                    Debug.log("Selected Block: " + Player.selX + ", " + Player.selY + ", " + Player.selZ + ", " + Player.selAxis);
 
                 } else {
 
@@ -132,17 +140,26 @@
 
             checkControls: function () {
                 if (Controls.keys.includes("j")) {
-                    Player.yaw -= 0.05;
+                    Player.vyaw -= 0.012;
                 }
                 if (Controls.keys.includes("l")) {
-                    Player.yaw += 0.05;
+                    Player.vyaw += 0.012;
                 }
                 if (Controls.keys.includes("k")) {
-                    Player.pitch -= 0.05;
+                    Player.vpitch -= 0.012;
                 }
                 if (Controls.keys.includes("i")) {
-                    Player.pitch += 0.05;
+                    Player.vpitch += 0.012;
                 }
+
+                Player.pitch += Player.vpitch;
+                Player.yaw += Player.vyaw;
+                Player.roll += Player.vroll;
+
+                Player.vpitch *= 0.8;
+                Player.vyaw *= 0.8;
+                Player.vroll *= 0.8;
+
                 if (Controls.keys.includes("s")) {
                     Player.vx += Player.walkSpeed * Math.sin(Player.yaw);
                     Player.vz += Player.walkSpeed * Math.cos(Player.yaw);
@@ -164,7 +181,7 @@
                 }
                 if (Controls.keys.includes("q")) {
                     if (!Controls.keys.includes("e")) {
-                        Player.vy = 0;
+                        Player.vy = 0.022;
                     }
                 }
                 if (Controls.keys.includes(" ")) {
@@ -172,33 +189,88 @@
                         Player.vy = 0.26;
                     }
                 }
+                if (Controls.keys.includes("u")) {
+                    Player.breakProgress = 8;
+                } else {
+                    Player.breakProgress = 0;
+                }
+                if (Controls.keys.includes("o")) {
+                    Player.willPlace = true;
+                } else {
+                    Player.willPlace = false;
+                    Player.hasPlaced = false;
+                }
             }
         };
 
         const Player = {
-            x: 3.5,
-            y: 12.5,
-            z: 0,
+            x: 8,
+            y: 5,
+            z: 8,
             pitch: 0,
             yaw: Math.PI,
             roll: 0,
             vx: 0,
             vy: 0,
             vz: 0,
+            vpitch: 0,
+            vyaw: 0,
+            vroll: 0,
             walkSpeed: 0.035,
             isOnGround: false,
             selX: undefined,
             selY: undefined,
             selZ: undefined,
+            selAxis: undefined,
+            breakProgress: 0,
+            willPlace: false,
+            hasPlaced: false,
+
+            breakBlock: function (x, y, z) {
+                World.setBlock("block:air", x, y, z);
+            },
+
+            placeBlock: function (axis, x, y, z) {
+                if (!Player.hasPlaced) {
+                    Player.hasPlaced = true;
+                    if (axis === "+x") {
+                        if (World.getBlockDat(x + 1, y, z)[0] === "block:air") {
+                            World.setBlock("block:cobblestone", x + 1, y, z);
+                        }
+                    } else if (axis === "-x") {
+                        if (World.getBlockDat(x - 1, y, z)[0] === "block:air") {
+                            World.setBlock("block:cobblestone", x - 1, y, z);
+                        }
+                    } else if (axis === "+y") {
+                        if (World.getBlockDat(x, y + 1, z)[0] === "block:air") {
+                            World.setBlock("block:cobblestone", x, y + 1, z);
+                        }
+                    } else if (axis === "-y") {
+                        if (World.getBlockDat(x, y - 1, z)[0] === "block:air") {
+                            World.setBlock("block:cobblestone", x, y - 1, z);
+                        }
+                    } else if (axis === "+z") {
+                        if (World.getBlockDat(x, y, z + 1)[0] === "block:air") {
+                            World.setBlock("block:cobblestone", x, y, z + 1);
+                        }
+                    } else if (axis === "-z") {
+                        if (World.getBlockDat(x, y, z - 1)[0] === "block:air") {
+                            World.setBlock("block:cobblestone", x, y, z - 1);
+                        }
+                    } else if (!axis === undefined) {
+                        console.error("Wrong axis input: " + axis);
+                    }
+                }
+            },
 
             move: function (dx, dy, dz) {
                 Player.x += dx;
-                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.6, 1.8, 0.8)) {
+                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, false)) {
                     Player.x -= dx;
                     Player.vx = 0;
                 }
                 Player.y += dy;
-                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.6, 1.8, 0.8)) {
+                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, false)) {
                     Player.y -= dy;
                     Player.vy = 0;
                     Player.isOnGround = true;
@@ -206,9 +278,23 @@
                     Player.isOnGround = false;
                 }
                 Player.z += dz;
-                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.6, 1.8, 0.8)) {
+                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, false)) {
                     Player.z -= dz;
                     Player.vz = 0;
+                }
+            },
+
+            cleanAngs: function () {
+                if (Player.pitch > Math.PI / 2) {
+                    Player.pitch = Math.PI / 2;
+                } else if (Player.pitch < -Math.PI / 2) {
+                    Player.pitch = -Math.PI / 2;
+                }
+
+                if (Player.yaw > 2 * Math.PI) {
+                    Player.yaw = 0;
+                } else if (Player.yaw < 0) {
+                    Player.yaw = 2 * Math.PI;
                 }
             },
 
@@ -219,34 +305,66 @@
                 let dx = 0;
                 let dy = 0;
                 let dz = 0;
-                while (Engine.dist(dx, dy, dz) <= maxd || World.getBlockDat(x, y, z)[0] === "block:air") {
-                    x += 0.1 * Math.cos(pitch) * Math.sin(yaw);
-                    y += 0.1 * Math.sin(pitch);
-                    z += 0.1 * Math.cos(pitch) * Math.cos(yaw);
-                    dx += 0.1 * Math.cos(pitch) * Math.sin(yaw);
-                    dy += 0.1 * Math.sin(pitch);
-                    dz += 0.1 * Math.cos(pitch) * Math.cos(yaw);
-                    return [Math.floor(x), Math.floor(y), Math.floor(z)];
+                while (Engine.dist(dx, dy, dz) <= maxd && (World.getBlockDat(Math.floor(x), Math.floor(y), Math.floor(z))[0] === "block:air")) {
+                    x -= 0.01 * Math.cos(pitch) * Math.sin(yaw);
+                    y += 0.01 * Math.sin(pitch);
+                    z -= 0.01 * Math.cos(pitch) * Math.cos(yaw);
+                    dx += Math.abs(0.01 * Math.cos(pitch) * Math.sin(yaw));
+                    dy += Math.abs(0.01 * Math.sin(pitch));
+                    dz += Math.abs(0.01 * Math.cos(pitch) * Math.cos(yaw));
+                }
+                if (World.getBlockDat(Math.floor(x), Math.floor(y), Math.floor(z))[0] === "block:air") {
+                    return [-1, -1, -1, undefined];
+                } else {
+                    const blockX = Math.abs(0.5 - Math.abs(x - Math.floor(x)));
+                    const blockY = Math.abs(0.5 - Math.abs(y - Math.floor(y)));
+                    const blockZ = Math.abs(0.5 - Math.abs(z - Math.floor(z)));
+                    if (Math.max(blockX, blockY, blockZ) === blockX) {
+                        if (fromx > x) {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), "+x"];
+                        } else {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), "-x"];
+                        }
+                    } else if (Math.max(blockX, blockY, blockZ) === blockY) {
+                        if (fromy > y) {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), "+y"];
+                        } else {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), "-y"];
+                        }
+                    } else if (Math.max(blockX, blockY, blockZ) === blockZ) {
+                        if (fromz > z) {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), "+z"];
+                        } else {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), "-z"];
+                        }
+                    } else {
+                        return [Math.floor(x), Math.floor(y), Math.floor(z), undefined];
+                    }
                 }
             },
 
             selectBlock: function () {
-                let temp = Player.ray(Camera.x, Camera.y, Camera.z, Player.pitch, Player.yaw, 4.5);
+                let temp = Player.ray(Camera.x, Camera.y, Camera.z, Player.pitch, Player.yaw, 6.5);
                 Player.selX = temp[0];
                 Player.selY = temp[1];
                 Player.selZ = temp[2];
+                Player.selAxis = temp[3];
             },
         };
 
         const EntEngine = {
-            hitbox: function (cx, by, cz, sx, sy, sz) {
+            hitbox: function (cx, by, cz, sx, sy, sz, canDestroy) {
                 let dat = undefined;
                 for (let i = 0; i < 4; i++) {
                     for (let j = 0; j < 4; j++) {
                         for (let k = 0; k < 4; k++) {
-                            dat = World.getBlockDat(Math.floor(cx - sx / 2 + i * sx / 3), Math.floor(by + j * sy / 3), Math.floor(cz - sz / 2 + k * sz / 3));
-                            if (!(dat[0] === "block:air")) {
-                                return true;
+                            dat = World.getBlockDat(Math.floor(cx - sx / 2 + i * sx / 3), Math.floor(by + j * sy / 3), Math.floor(cz - sz / 2 + k * sz / 3))[0];
+                            if (!(dat === "block:air")) {
+                                if (canDestroy) {
+                                    World.setBlock("block:air", Math.floor(cx - sx / 2 + i * sx / 3), Math.floor(by + j * sy / 3), Math.floor(cz - sz / 2 + k * sz / 3));
+                                } else {
+                                    return true;
+                                }
                             }
                         }
                     }
@@ -345,38 +463,77 @@
                     updy = Math.floor(update / World.ysize ** 2);
                     updz = Math.floor((update - World.ysize ** 2 * updy) / World.zsize);
                     updx = update - World.ysize ** 2 * updy - World.zsize * updz;
-                    Render.updateBlock(updx, updy, updz);
+                    Render.updAddFace(updx, updy, updz);
                 }
 
                 Render.updates = [];
-                Render.orderedUpdates = [];
             },
 
-            updateBlock: function (x, y, z) {
-                let thisBlock = World.getBlockDat(x, y, z)[0];
-                let thatBlock = World.getBlockDat(x + 1, y, z)[0]
-                if (thatBlock === "block:air") {
-                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+x", x, y, z])
+            delFace: function (axis, x, y, z) {
+                if (Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes([axis, x, y, z].toString())) {
+                    Render.faces.splice(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).indexOf([axis, x, y, z].toString()), 1);
                 }
-                thatBlock = World.getBlockDat(x - 1, y, z)[0]
-                if (thatBlock === "block:air") {
-                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-x", x, y, z])
-                }
-                thatBlock = World.getBlockDat(x, y + 1, z)[0]
-                if (thatBlock === "block:air") {
-                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+y", x, y, z])
-                }
-                thatBlock = World.getBlockDat(x, y - 1, z)[0]
-                if (thatBlock === "block:air") {
-                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-y", x, y, z])
-                }
-                thatBlock = World.getBlockDat(x, y, z + 1)[0]
-                if (thatBlock === "block:air") {
-                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+z", x, y, z])
-                }
-                thatBlock = World.getBlockDat(x, y, z - 1)[0]
-                if (thatBlock === "block:air") {
-                    Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-z", x, y, z])
+            },
+
+            updAddFace: function (x, y, z) {
+                const thisBlock = World.getBlockDat(x, y, z)[0];
+
+                if (thisBlock === "block:air") {
+                    Render.delFace("+x", x, y, z);
+                    Render.delFace("-x", x, y, z);
+                    Render.delFace("+y", x, y, z);
+                    Render.delFace("-y", x, y, z);
+                    Render.delFace("+z", x, y, z);
+                    Render.delFace("-z", x, y, z);
+                } else {
+                    let thatBlock = World.getBlockDat(x + 1, y, z)[0];
+                    if (thatBlock === "block:air") {
+                        if (!(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes(["+x", x, y, z].toString()))) {
+                            Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+x", x, y, z]);
+                        }
+                    } else {
+                        Render.delFace("+x", x, y, z);
+                    }
+                    thatBlock = World.getBlockDat(x - 1, y, z)[0]
+                    if (thatBlock === "block:air") {
+                        if (!(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes(["-x", x, y, z].toString()))) {
+                            Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-x", x, y, z])
+                        }
+                    } else {
+                        Render.delFace("-x", x, y, z);
+                    }
+                    thatBlock = World.getBlockDat(x, y + 1, z)[0]
+                    if (thatBlock === "block:air") {
+                        if (!(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes(["+y", x, y, z].toString()))) {
+                            Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+y", x, y, z])
+                        }
+                    } else {
+                        Render.delFace("+y", x, y, z);
+                    }
+                    thatBlock = World.getBlockDat(x, y - 1, z)[0]
+                    if (thatBlock === "block:air") {
+                        if (!(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes(["-y", x, y, z].toString()))) {
+                            Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-y", x, y, z])
+                        }
+                    } else {
+                        Render.delFace("-y", x, y, z);
+                    }
+                    thatBlock = World.getBlockDat(x, y, z + 1)[0]
+                    if (thatBlock === "block:air") {
+                        if (!(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes(["+z", x, y, z].toString()))) {
+                            Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "+z", x, y, z])
+                        }
+                    } else {
+                        Render.delFace("+z", x, y, z);
+                    }
+                    thatBlock = World.getBlockDat(x, y, z - 1)[0]
+                    if (thatBlock === "block:air") {
+                        if (!(Render.faces.map((a) => [a[1], a[2], a[3], a[4]].toString()).includes(["-z", x, y, z].toString()))) {
+                            Render.faces.push([Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf(thisBlock) + 1], "-z", x, y, z])
+                        }
+                    } else {
+                        Render.delFace("-z", x, y, z);
+                    }
                 }
 
             },
@@ -386,6 +543,12 @@
                     if (!Render.updates.includes(World.ysize ** 2 * y + World.zsize * z + x)) {
                         Render.updates.push(World.ysize ** 2 * y + World.zsize * z + x);
                     }
+                }
+            },
+
+            forceAddUpdate: function (x, y, z) {
+                if (!Render.updates.includes(World.ysize ** 2 * y + World.zsize * z + x)) {
+                    Render.updates.push(World.ysize ** 2 * y + World.zsize * z + x);
                 }
             },
 
@@ -422,15 +585,15 @@
                         Engine.face(texture[2], texture[3], x + 1, y, z, x, y, z, x + 1, y, z + 1, x, y, z + 1);
                     }
                 } else {
-                    console.error("Render.face(): Wrong axis input in \"blockFace\" method: " + axis);
+                    console.error("Wrong axis input: " + axis);
                 }
             },
         };
 
         const World = {
-            xsize: 32,
+            xsize: 16,
             ysize: 32,
-            zsize: 32,
+            zsize: 16,
             blocks: [],
 
             reset: function (xlen, ylen, zlen) {
@@ -451,26 +614,30 @@
             },
 
             getBlockDat: function (x, y, z) {
-                if (x < 0 || x >= World.xsize) {
-                    return ["block:air", false]
-                } else if (z < 0 || z >= World.zsize) {
-                    return ["block:air", false]
-                } else if (y < 0 || y >= World.xsize) {
-                    return ["block:air", false]
+                if (World.blocks[y] === undefined) {
+                    return ["block:air", false];
+                } else if (World.blocks[y][z] === undefined) {
+                    return ["block:air", false];
+                } else if (World.blocks[y][z][x] === undefined) {
+                    return ["block:air", false];
                 } else {
-                    return World.blocks[y][z][x]
+                    return World.blocks[y][z][x];
                 }
             },
 
             setBlock: function (block, x, y, z) {
-                World.blocks[y][z][x][0] = block;
-                Render.addUpdate(x, y, z);
-                Render.addUpdate(x + 1, y, z);
-                Render.addUpdate(x - 1, y, z);
-                Render.addUpdate(x, y + 1, z);
-                Render.addUpdate(x, y - 1, z);
-                Render.addUpdate(x, y, z + 1);
-                Render.addUpdate(x, y, z - 1);
+                if (x >= 0 && x < World.xsize && y >= 0 && y < World.ysize && z >= 0 && z < World.zsize) {
+                    World.blocks[y][z][x][0] = block;
+
+                    Render.forceAddUpdate(x, y, z);
+
+                    Render.addUpdate(x + 1, y, z);
+                    Render.addUpdate(x - 1, y, z);
+                    Render.addUpdate(x, y + 1, z);
+                    Render.addUpdate(x, y - 1, z);
+                    Render.addUpdate(x, y, z + 1);
+                    Render.addUpdate(x, y, z - 1);
+                }
             },
         };
 
@@ -510,6 +677,15 @@
                     new Image(),
                     new Image(),
                 ],
+
+                cobblestone: [
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                ],
             },
 
             misc: {
@@ -518,6 +694,17 @@
                 ],
 
                 select: [
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                    new Image(),
+                ],
+            },
+
+            ui: {
+                crosshair: [
                     new Image(),
                 ],
             },
@@ -532,34 +719,52 @@
             },
         };
 
-        Srcs.blocks.grass[0].src = "block-grassSide-tl.png";
-        Srcs.blocks.grass[1].src = "block-grassSide-br.png";
-        Srcs.blocks.grass[2].src = "block-grassBottom-tl.png";
-        Srcs.blocks.grass[3].src = "block-grassBottom-br.png";
-        Srcs.blocks.grass[4].src = "block-grassTop-tl.png";
-        Srcs.blocks.grass[5].src = "block-grassTop-br.png";
+        Srcs.blocks.grass[0].src = "textures/blocks/grass/side-tl.png";
+        Srcs.blocks.grass[1].src = "textures/blocks/grass/side-br.png";
+        Srcs.blocks.grass[2].src = "textures/blocks/grass/bottom-tl.png";
+        Srcs.blocks.grass[3].src = "textures/blocks/grass/bottom-br.png";
+        Srcs.blocks.grass[4].src = "textures/blocks/grass/top-tl.png";
+        Srcs.blocks.grass[5].src = "textures/blocks/grass/top-br.png";
 
-        Srcs.blocks.dirt[0].src = "block-dirtSide-tl.png";
-        Srcs.blocks.dirt[1].src = "block-dirtSide-br.png";
-        Srcs.blocks.dirt[2].src = "block-dirtBottom-tl.png";
-        Srcs.blocks.dirt[3].src = "block-dirtBottom-br.png";
-        Srcs.blocks.dirt[4].src = "block-dirtTop-tl.png";
-        Srcs.blocks.dirt[5].src = "block-dirtTop-br.png";
+        Srcs.blocks.dirt[0].src = "textures/blocks/dirt/side-tl.png";
+        Srcs.blocks.dirt[1].src = "textures/blocks/dirt/side-br.png";
+        Srcs.blocks.dirt[2].src = "textures/blocks/dirt/bottom-tl.png";
+        Srcs.blocks.dirt[3].src = "textures/blocks/dirt/bottom-br.png";
+        Srcs.blocks.dirt[4].src = "textures/blocks/dirt/top-tl.png";
+        Srcs.blocks.dirt[5].src = "textures/blocks/dirt/top-br.png";
 
-        Srcs.blocks.stone[0].src = "block-stoneSide-tl.png";
-        Srcs.blocks.stone[1].src = "block-stoneSide-br.png";
-        Srcs.blocks.stone[2].src = "block-stoneBottom-tl.png";
-        Srcs.blocks.stone[3].src = "block-stoneBottom-br.png";
-        Srcs.blocks.stone[4].src = "block-stoneTop-tl.png";
-        Srcs.blocks.stone[5].src = "block-stoneTop-br.png";
+        Srcs.blocks.stone[0].src = "textures/blocks/stone/side-tl.png";
+        Srcs.blocks.stone[1].src = "textures/blocks/stone/side-br.png";
+        Srcs.blocks.stone[2].src = "textures/blocks/stone/bottom-tl.png";
+        Srcs.blocks.stone[3].src = "textures/blocks/stone/bottom-br.png";
+        Srcs.blocks.stone[4].src = "textures/blocks/stone/top-tl.png";
+        Srcs.blocks.stone[5].src = "textures/blocks/stone/top-br.png";
 
-        Srcs.misc.sky[0].src = "misc-sky.png";
-        Srcs.misc.select[0].src = "misc-select.png";
+        Srcs.blocks.cobblestone[0].src = "textures/blocks/cobblestone/side-tl.png";
+        Srcs.blocks.cobblestone[1].src = "textures/blocks/cobblestone/side-br.png";
+        Srcs.blocks.cobblestone[2].src = "textures/blocks/cobblestone/bottom-tl.png";
+        Srcs.blocks.cobblestone[3].src = "textures/blocks/cobblestone/bottom-br.png";
+        Srcs.blocks.cobblestone[4].src = "textures/blocks/cobblestone/top-tl.png";
+        Srcs.blocks.cobblestone[5].src = "textures/blocks/cobblestone/top-br.png";
+
+
+        Srcs.misc.sky[0].src = "textures/misc/sky.png";
+
+        Srcs.misc.select[0].src = "textures/misc/select.png";
+        Srcs.misc.select[1].src = "textures/misc/select.png";
+        Srcs.misc.select[2].src = "textures/misc/select.png";
+        Srcs.misc.select[3].src = "textures/misc/select.png";
+        Srcs.misc.select[4].src = "textures/misc/select.png";
+        Srcs.misc.select[5].src = "textures/misc/select.png";
+
+        Srcs.ui.crosshair[0].src = "textures/ui/crosshair.png";
+
 
         Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:air") + 1] = null;
         Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:grass") + 1] = Srcs.blocks.grass;
         Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:dirt") + 1] = Srcs.blocks.dirt;
         Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:stone") + 1] = Srcs.blocks.stone;
+        Srcs.sys.blockTexMap[Srcs.sys.blockTexMap.indexOf("block:cobblestone") + 1] = Srcs.blocks.cobblestone;
 
         // =======================================================================================
         // ------- WORLD -------
@@ -588,15 +793,11 @@
             }
         }
 
-        World.setBlock("block:stone", 3, 4, 3);
-        World.setBlock("block:stone", 4, 4, 3);
-        World.setBlock("block:stone", 4, 5, 3);
-
         // =======================================================================================
 
         Render.updateAll();
 
-        setInterval(Sys.tick, 33);
+        setInterval(Sys.tick, 50);
 
     </script>
 </body>
