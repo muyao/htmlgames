@@ -139,27 +139,45 @@
             },
 
             checkControls: function () {
+
                 if (Controls.keys.includes("j")) {
-                    Player.vyaw -= 0.012;
+                    Player.vyaw -= 0.01;
                 }
                 if (Controls.keys.includes("l")) {
-                    Player.vyaw += 0.012;
+                    Player.vyaw += 0.01;
                 }
                 if (Controls.keys.includes("k")) {
-                    Player.vpitch -= 0.012;
+                    Player.vpitch -= 0.01;
                 }
                 if (Controls.keys.includes("i")) {
-                    Player.vpitch += 0.012;
+                    Player.vpitch += 0.01;
                 }
 
                 Player.pitch += Player.vpitch;
                 Player.yaw += Player.vyaw;
                 Player.roll += Player.vroll;
 
-                Player.vpitch *= 0.8;
-                Player.vyaw *= 0.8;
-                Player.vroll *= 0.8;
+                if (Controls.keys.includes("i") || Controls.keys.includes("j") || Controls.keys.includes("k") || Controls.keys.includes("l")) {
+                    Player.vpitch *= 0.9;
+                    Player.vyaw *= 0.9;
+                    Player.vroll *= 0.9;
+                } else {
+                    Player.vpitch *= 0.8;
+                    Player.vyaw *= 0.8;
+                    Player.vroll *= 0.8;
+                }
 
+                if (Controls.keys.includes("q")) {
+                    Player.walkSpeed = 0.1;
+                    if (!Controls.keys.includes("e")) {
+                        Player.vy = 0.022;
+                    }
+                } else {
+                    Player.walkSpeed = 0.035;
+                }
+                if (Controls.keys.includes("e")) {
+                    Player.vy += 0.1;
+                }
                 if (Controls.keys.includes("s")) {
                     Player.vx += Player.walkSpeed * Math.sin(Player.yaw);
                     Player.vz += Player.walkSpeed * Math.cos(Player.yaw);
@@ -175,14 +193,6 @@
                 if (Controls.keys.includes("a")) {
                     Player.vx -= Player.walkSpeed * Math.sin(Player.yaw - Math.PI / 2);
                     Player.vz -= Player.walkSpeed * Math.cos(Player.yaw - Math.PI / 2);
-                }
-                if (Controls.keys.includes("e")) {
-                    Player.vy += 0.1;
-                }
-                if (Controls.keys.includes("q")) {
-                    if (!Controls.keys.includes("e")) {
-                        Player.vy = 0.022;
-                    }
                 }
                 if (Controls.keys.includes(" ")) {
                     if (Player.isOnGround) {
