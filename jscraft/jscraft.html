@@ -59,31 +59,38 @@
                 if (Sys.hasStarted) {
 
                     Controls.checkControls();
+                    Player.vel.y -= 0.022;
+                    Player.pos.cleanAngs();
+                    Player.attr.hfric = Attrs.blocks[Attrs.blocks.indexOf(World.getBlockDat(Math.floor(Player.pos.x), Math.floor(Player.pos.y + Player.vel.y), Math.floor(Player.pos.z))[0]) + 1][1];
+                    Player.pos.move(Player.vel.x, Player.vel.y, Player.vel.z);
 
-                    Player.vy -= 0.022;
-                    Player.cleanAngs();
+                    Camera.x = Player.pos.x;
+                    Camera.y = Player.pos.y + 1.62;
+                    Camera.z = Player.pos.z;
+                    Camera.pitch = Player.pos.pitch;
+                    Camera.yaw = Player.pos.yaw;
+                    Camera.roll = Player.pos.roll;
 
-                    Player.vx *= 0.8;
-                    Player.vy *= 0.98;
-                    Player.vz *= 0.8;
-
-                    Player.move(Player.vx, Player.vy, Player.vz);
-
-                    Camera.x = Player.x;
-                    Camera.y = Player.y + 1.62;
-                    Camera.z = Player.z;
-                    Camera.pitch = Player.pitch;
-                    Camera.yaw = Player.yaw;
-                    Camera.roll = Player.roll;
-
-                    if (Player.breakProgress > 7) {
-                        Player.breakBlock(Player.selX, Player.selY, Player.selZ);
+                    if (!(Player.sel.x === Player.sel.oldx && Player.sel.oldy === Player.sel.y && Player.sel.oldz === Player.sel.z)) {
+                        Player.sel.oldx = Player.sel.x;
+                        Player.sel.oldy = Player.sel.y;
+                        Player.sel.oldz = Player.sel.z;
+                        Player.sel.breakProgress = 0;
                     }
-                    if (Player.willPlace) {
-                        Player.placeBlock(Player.selAxis, Player.selX, Player.selY, Player.selZ);
+                    if (Player.sel.isBreaking) {
+                        Player.sel.breakProgress += Attrs.blocks[Attrs.blocks.indexOf(Player.sel.block) + 1][0];
+                    } else {
+                        Player.sel.breakProgress = 0;
                     }
-                    EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, true);
-                    Player.selectBlock();
+                    if (Player.sel.breakProgress >= 1) {
+                        Player.sel.breakProgress = 0;
+                        Player.sel.breakBlock(Player.sel.x, Player.sel.y, Player.sel.z);
+                    }
+                    if (Player.sel.willPlace) {
+                        Player.sel.placeBlock(Player.sel.axis, Player.sel.x, Player.sel.y, Player.sel.z);
+                    }
+                    EntEngine.hitbox(Player.pos.x, Player.pos.y, Player.pos.z, 0.8, 1.8, 0.8, true);
+                    Player.sel.selectBlock();
 
                     ctx.save();
                     ctx.setTransform(canvas.width / Srcs.misc.sky[0].width, 0, 0, canvas.height / Srcs.misc.sky[0].height, 0, 0);
@@ -94,14 +101,22 @@
 
                     Render.render();
 
-                    if (!(Player.selAxis === undefined)) {
-                        Render.face(Srcs.misc.select, Player.selAxis, Player.selX, Player.selY, Player.selZ);
+                    if (!(Player.sel.axis === undefined)) {
+                        Render.face(Srcs.misc.select, "+x", Player.sel.x, Player.sel.y, Player.sel.z);
+                        Render.face(Srcs.misc.select, "-x", Player.sel.x, Player.sel.y, Player.sel.z);
+                        Render.face(Srcs.misc.select, "+y", Player.sel.x, Player.sel.y, Player.sel.z);
+                        Render.face(Srcs.misc.select, "-y", Player.sel.x, Player.sel.y, Player.sel.z);
+                        Render.face(Srcs.misc.select, "+z", Player.sel.x, Player.sel.y, Player.sel.z);
+                        Render.face(Srcs.misc.select, "-z", Player.sel.x, Player.sel.y, Player.sel.z);
+                        if (Player.sel.isBreaking) {
+                            Render.face(Srcs.misc.break[Math.floor(11 * Player.sel.breakProgress)], Player.sel.axis, Player.sel.x, Player.sel.y, Player.sel.z);
+                        }
                     }
 
                     ctx.drawImage(Srcs.ui.crosshair[0], (canvas.width - Srcs.ui.crosshair[0].width) / 2, (canvas.height - Srcs.ui.crosshair[0].height) / 2);
 
                     Debug.log("Tris Rendered: " + Sys.trisRendered);
-                    Debug.log("Selected Block: " + Player.selX + ", " + Player.selY + ", " + Player.selZ + ", " + Player.selAxis);
+                    Debug.log("Selected Block: " + Player.sel.x + ", " + Player.sel.y + ", " + Player.sel.z + ", " + Player.sel.axis + ", " + Player.sel.block);
 
                 } else {
 
@@ -141,224 +156,238 @@
             checkControls: function () {
 
                 if (Controls.keys.includes("j")) {
-                    Player.vyaw -= 0.01;
+                    Player.vel.yaw -= 0.01;
                 }
                 if (Controls.keys.includes("l")) {
-                    Player.vyaw += 0.01;
+                    Player.vel.yaw += 0.01;
                 }
                 if (Controls.keys.includes("k")) {
-                    Player.vpitch -= 0.01;
+                    Player.vel.pitch -= 0.01;
                 }
                 if (Controls.keys.includes("i")) {
-                    Player.vpitch += 0.01;
+                    Player.vel.pitch += 0.01;
                 }
 
-                Player.pitch += Player.vpitch;
-                Player.yaw += Player.vyaw;
-                Player.roll += Player.vroll;
+                Player.pos.pitch += Player.vel.pitch;
+                Player.pos.yaw += Player.vel.yaw;
+                Player.pos.roll += Player.vel.roll;
 
                 if (Controls.keys.includes("i") || Controls.keys.includes("j") || Controls.keys.includes("k") || Controls.keys.includes("l")) {
-                    Player.vpitch *= 0.9;
-                    Player.vyaw *= 0.9;
-                    Player.vroll *= 0.9;
+                    Player.vel.pitch *= 0.95;
+                    Player.vel.yaw *= 0.95;
+                    Player.vel.roll *= 0.95;
                 } else {
-                    Player.vpitch *= 0.8;
-                    Player.vyaw *= 0.8;
-                    Player.vroll *= 0.8;
-                }
-
-                if (Controls.keys.includes("q")) {
-                    Player.walkSpeed = 0.1;
-                    if (!Controls.keys.includes("e")) {
-                        Player.vy = 0.022;
-                    }
-                } else {
-                    Player.walkSpeed = 0.035;
+                    Player.vel.pitch *= 0.6;
+                    Player.vel.yaw *= 0.6;
+                    Player.vel.roll *= 0.6;
                 }
                 if (Controls.keys.includes("e")) {
-                    Player.vy += 0.1;
+                    Player.vel.y += 0.1;
                 }
                 if (Controls.keys.includes("s")) {
-                    Player.vx += Player.walkSpeed * Math.sin(Player.yaw);
-                    Player.vz += Player.walkSpeed * Math.cos(Player.yaw);
+                    Player.vel.x += Player.attr.hfric ** 3 * Player.attr.acc * Math.sin(Player.pos.yaw);
+                    Player.vel.z += Player.attr.hfric ** 3 * Player.attr.acc * Math.cos(Player.pos.yaw);
                 }
                 if (Controls.keys.includes("w")) {
-                    Player.vx -= Player.walkSpeed * Math.sin(Player.yaw);
-                    Player.vz -= Player.walkSpeed * Math.cos(Player.yaw);
+                    Player.vel.x -= Player.attr.hfric ** 3 * Player.attr.acc * Math.sin(Player.pos.yaw);
+                    Player.vel.z -= Player.attr.hfric ** 3 * Player.attr.acc * Math.cos(Player.pos.yaw);
                 }
                 if (Controls.keys.includes("d")) {
-                    Player.vx += Player.walkSpeed * Math.sin(Player.yaw - Math.PI / 2);
-                    Player.vz += Player.walkSpeed * Math.cos(Player.yaw - Math.PI / 2);
+                    Player.vel.x += Player.attr.hfric ** 3 * Player.attr.acc * Math.sin(Player.pos.yaw - Math.PI / 2);
+                    Player.vel.z += Player.attr.hfric ** 3 * Player.attr.acc * Math.cos(Player.pos.yaw - Math.PI / 2);
                 }
                 if (Controls.keys.includes("a")) {
-                    Player.vx -= Player.walkSpeed * Math.sin(Player.yaw - Math.PI / 2);
-                    Player.vz -= Player.walkSpeed * Math.cos(Player.yaw - Math.PI / 2);
+                    Player.vel.x -= Player.attr.hfric ** 3 * Player.attr.acc * Math.sin(Player.pos.yaw - Math.PI / 2);
+                    Player.vel.z -= Player.attr.hfric ** 3 * Player.attr.acc * Math.cos(Player.pos.yaw - Math.PI / 2);
                 }
                 if (Controls.keys.includes(" ")) {
-                    if (Player.isOnGround) {
-                        Player.vy = 0.26;
+                    if (Player.dat.isOnGround) {
+                        Player.vel.y = 0.26;
+                        Player.vel.x -= Player.attr.hfric ** 3 * 0.03 * Math.sin(Player.pos.yaw);
+                        Player.vel.z -= Player.attr.hfric ** 3 * 0.03 * Math.cos(Player.pos.yaw);
                     }
                 }
                 if (Controls.keys.includes("u")) {
-                    Player.breakProgress = 8;
+                    Player.sel.isBreaking = true;
                 } else {
-                    Player.breakProgress = 0;
+                    Player.sel.isBreaking = false;
                 }
                 if (Controls.keys.includes("o")) {
-                    Player.willPlace = true;
+                    Player.sel.willPlace = true;
                 } else {
-                    Player.willPlace = false;
-                    Player.hasPlaced = false;
+                    Player.sel.willPlace = false;
+                    Player.sel.hasPlaced = false;
                 }
             }
         };
 
         const Player = {
-            x: 8,
-            y: 5,
-            z: 8,
-            pitch: 0,
-            yaw: Math.PI,
-            roll: 0,
-            vx: 0,
-            vy: 0,
-            vz: 0,
-            vpitch: 0,
-            vyaw: 0,
-            vroll: 0,
-            walkSpeed: 0.035,
-            isOnGround: false,
-            selX: undefined,
-            selY: undefined,
-            selZ: undefined,
-            selAxis: undefined,
-            breakProgress: 0,
-            willPlace: false,
-            hasPlaced: false,
+            pos: {
+                x: 8,
+                y: 5,
+                z: 8,
+                pitch: 0,
+                yaw: Math.PI,
+                roll: 0,
 
-            breakBlock: function (x, y, z) {
-                World.setBlock("block:air", x, y, z);
-            },
-
-            placeBlock: function (axis, x, y, z) {
-                if (!Player.hasPlaced) {
-                    Player.hasPlaced = true;
-                    if (axis === "+x") {
-                        if (World.getBlockDat(x + 1, y, z)[0] === "block:air") {
-                            World.setBlock("block:cobblestone", x + 1, y, z);
-                        }
-                    } else if (axis === "-x") {
-                        if (World.getBlockDat(x - 1, y, z)[0] === "block:air") {
-                            World.setBlock("block:cobblestone", x - 1, y, z);
-                        }
-                    } else if (axis === "+y") {
-                        if (World.getBlockDat(x, y + 1, z)[0] === "block:air") {
-                            World.setBlock("block:cobblestone", x, y + 1, z);
-                        }
-                    } else if (axis === "-y") {
-                        if (World.getBlockDat(x, y - 1, z)[0] === "block:air") {
-                            World.setBlock("block:cobblestone", x, y - 1, z);
-                        }
-                    } else if (axis === "+z") {
-                        if (World.getBlockDat(x, y, z + 1)[0] === "block:air") {
-                            World.setBlock("block:cobblestone", x, y, z + 1);
-                        }
-                    } else if (axis === "-z") {
-                        if (World.getBlockDat(x, y, z - 1)[0] === "block:air") {
-                            World.setBlock("block:cobblestone", x, y, z - 1);
-                        }
-                    } else if (!axis === undefined) {
-                        console.error("Wrong axis input: " + axis);
+                move: function (dx, dy, dz) {
+                    Player.pos.x += dx;
+                    if (EntEngine.hitbox(Player.pos.x, Player.pos.y, Player.pos.z, 0.8, 1.8, 0.8, false)) {
+                        Player.pos.x -= dx;
+                        Player.vel.x = 0;
                     }
-                }
-            },
-
-            move: function (dx, dy, dz) {
-                Player.x += dx;
-                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, false)) {
-                    Player.x -= dx;
-                    Player.vx = 0;
-                }
-                Player.y += dy;
-                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, false)) {
-                    Player.y -= dy;
-                    Player.vy = 0;
-                    Player.isOnGround = true;
-                } else {
-                    Player.isOnGround = false;
-                }
-                Player.z += dz;
-                if (EntEngine.hitbox(Player.x, Player.y, Player.z, 0.8, 1.8, 0.8, false)) {
-                    Player.z -= dz;
-                    Player.vz = 0;
-                }
-            },
-
-            cleanAngs: function () {
-                if (Player.pitch > Math.PI / 2) {
-                    Player.pitch = Math.PI / 2;
-                } else if (Player.pitch < -Math.PI / 2) {
-                    Player.pitch = -Math.PI / 2;
-                }
-
-                if (Player.yaw > 2 * Math.PI) {
-                    Player.yaw = 0;
-                } else if (Player.yaw < 0) {
-                    Player.yaw = 2 * Math.PI;
-                }
-            },
-
-            ray: function (fromx, fromy, fromz, pitch, yaw, maxd) {
-                let x = fromx;
-                let y = fromy;
-                let z = fromz;
-                let dx = 0;
-                let dy = 0;
-                let dz = 0;
-                while (Engine.dist(dx, dy, dz) <= maxd && (World.getBlockDat(Math.floor(x), Math.floor(y), Math.floor(z))[0] === "block:air")) {
-                    x -= 0.01 * Math.cos(pitch) * Math.sin(yaw);
-                    y += 0.01 * Math.sin(pitch);
-                    z -= 0.01 * Math.cos(pitch) * Math.cos(yaw);
-                    dx += Math.abs(0.01 * Math.cos(pitch) * Math.sin(yaw));
-                    dy += Math.abs(0.01 * Math.sin(pitch));
-                    dz += Math.abs(0.01 * Math.cos(pitch) * Math.cos(yaw));
-                }
-                if (World.getBlockDat(Math.floor(x), Math.floor(y), Math.floor(z))[0] === "block:air") {
-                    return [-1, -1, -1, undefined];
-                } else {
-                    const blockX = Math.abs(0.5 - Math.abs(x - Math.floor(x)));
-                    const blockY = Math.abs(0.5 - Math.abs(y - Math.floor(y)));
-                    const blockZ = Math.abs(0.5 - Math.abs(z - Math.floor(z)));
-                    if (Math.max(blockX, blockY, blockZ) === blockX) {
-                        if (fromx > x) {
-                            return [Math.floor(x), Math.floor(y), Math.floor(z), "+x"];
-                        } else {
-                            return [Math.floor(x), Math.floor(y), Math.floor(z), "-x"];
-                        }
-                    } else if (Math.max(blockX, blockY, blockZ) === blockY) {
-                        if (fromy > y) {
-                            return [Math.floor(x), Math.floor(y), Math.floor(z), "+y"];
-                        } else {
-                            return [Math.floor(x), Math.floor(y), Math.floor(z), "-y"];
-                        }
-                    } else if (Math.max(blockX, blockY, blockZ) === blockZ) {
-                        if (fromz > z) {
-                            return [Math.floor(x), Math.floor(y), Math.floor(z), "+z"];
-                        } else {
-                            return [Math.floor(x), Math.floor(y), Math.floor(z), "-z"];
-                        }
+                    Player.pos.y += dy;
+                    if (EntEngine.hitbox(Player.pos.x, Player.pos.y, Player.pos.z, 0.8, 1.8, 0.8, false)) {
+                        Player.pos.y -= dy;
+                        Player.vel.y = 0;
+                        Player.dat.isOnGround = true;
                     } else {
-                        return [Math.floor(x), Math.floor(y), Math.floor(z), undefined];
+                        Player.dat.isOnGround = false;
                     }
-                }
-            },
+                    Player.pos.z += dz;
+                    if (EntEngine.hitbox(Player.pos.x, Player.pos.y, Player.pos.z, 0.8, 1.8, 0.8, false)) {
+                        Player.pos.z -= dz;
+                        Player.vel.z = 0;
+                    }
+                    Player.vel.x -= Player.attr.hfric ** 4 * Player.vel.x;
+                    Player.vel.y -= Player.attr.vfric ** 4 * Player.vel.y;
+                    Player.vel.z -= Player.attr.hfric ** 4 * Player.vel.z;
+                },
 
-            selectBlock: function () {
-                let temp = Player.ray(Camera.x, Camera.y, Camera.z, Player.pitch, Player.yaw, 6.5);
-                Player.selX = temp[0];
-                Player.selY = temp[1];
-                Player.selZ = temp[2];
-                Player.selAxis = temp[3];
+                cleanAngs: function () {
+                    if (Player.pos.pitch > Math.PI / 2) {
+                        Player.pos.pitch = Math.PI / 2;
+                    } else if (Player.pos.pitch < -Math.PI / 2) {
+                        Player.pos.pitch = -Math.PI / 2;
+                    }
+
+                    if (Player.pos.yaw > 2 * Math.PI) {
+                        Player.pos.yaw = 0;
+                    } else if (Player.pos.yaw < 0) {
+                        Player.pos.yaw = 2 * Math.PI;
+                    }
+                },
+            },
+            vel: {
+                x: 0,
+                y: 0,
+                z: 0,
+                pitch: 0,
+                yaw: 0,
+                roll: 0,
+            },
+            attr: {
+                acc: 0.12,
+                hfric: 0,
+                vfric: 0,
+            },
+            dat: {
+                isOnGround: false,
+            },
+            sel: {
+                x: -1,
+                y: -1,
+                z: -1,
+                oldx: -1,
+                oldy: -1,
+                oldz: -1,
+                axis: undefined,
+                isBreaking: false,
+                breakProgress: 0,
+                willPlace: false,
+                hasPlaced: false,
+                block: "block:air",
+
+                breakBlock: function (x, y, z) {
+                    World.setBlock("block:air", x, y, z);
+                },
+
+                placeBlock: function (axis, x, y, z) {
+                    if (!Player.sel.hasPlaced) {
+                        Player.sel.hasPlaced = true;
+                        if (axis === "+x") {
+                            if (World.getBlockDat(x + 1, y, z)[0] === "block:air") {
+                                World.setBlock("block:cobblestone", x + 1, y, z);
+                            }
+                        } else if (axis === "-x") {
+                            if (World.getBlockDat(x - 1, y, z)[0] === "block:air") {
+                                World.setBlock("block:cobblestone", x - 1, y, z);
+                            }
+                        } else if (axis === "+y") {
+                            if (World.getBlockDat(x, y + 1, z)[0] === "block:air") {
+                                World.setBlock("block:cobblestone", x, y + 1, z);
+                            }
+                        } else if (axis === "-y") {
+                            if (World.getBlockDat(x, y - 1, z)[0] === "block:air") {
+                                World.setBlock("block:cobblestone", x, y - 1, z);
+                            }
+                        } else if (axis === "+z") {
+                            if (World.getBlockDat(x, y, z + 1)[0] === "block:air") {
+                                World.setBlock("block:cobblestone", x, y, z + 1);
+                            }
+                        } else if (axis === "-z") {
+                            if (World.getBlockDat(x, y, z - 1)[0] === "block:air") {
+                                World.setBlock("block:cobblestone", x, y, z - 1);
+                            }
+                        } else if (!axis === undefined) {
+                            console.error("Wrong axis input: " + axis);
+                        }
+                    }
+                },
+
+                selectBlock: function () {
+                    let temp = Player.sel.ray(Camera.x, Camera.y, Camera.z, Player.pos.pitch, Player.pos.yaw, 6.5);
+                    Player.sel.x = temp[0];
+                    Player.sel.y = temp[1];
+                    Player.sel.z = temp[2];
+                    Player.sel.axis = temp[3];
+                    Player.sel.block = World.getBlockDat(Player.sel.x, Player.sel.y, Player.sel.z)[0];
+                },
+
+                ray: function (fromx, fromy, fromz, pitch, yaw, maxd) {
+                    let x = fromx;
+                    let y = fromy;
+                    let z = fromz;
+                    let dx = 0;
+                    let dy = 0;
+                    let dz = 0;
+                    while (Engine.dist(dx, dy, dz) <= maxd && (World.getBlockDat(Math.floor(x), Math.floor(y), Math.floor(z))[0] === "block:air")) {
+                        x -= 0.01 * Math.cos(pitch) * Math.sin(yaw);
+                        y += 0.01 * Math.sin(pitch);
+                        z -= 0.01 * Math.cos(pitch) * Math.cos(yaw);
+                        dx += Math.abs(0.01 * Math.cos(pitch) * Math.sin(yaw));
+                        dy += Math.abs(0.01 * Math.sin(pitch));
+                        dz += Math.abs(0.01 * Math.cos(pitch) * Math.cos(yaw));
+                    }
+                    if (World.getBlockDat(Math.floor(x), Math.floor(y), Math.floor(z))[0] === "block:air") {
+                        return [-1, -1, -1, undefined];
+                    } else {
+                        const blockX = Math.abs(0.5 - Math.abs(x - Math.floor(x)));
+                        const blockY = Math.abs(0.5 - Math.abs(y - Math.floor(y)));
+                        const blockZ = Math.abs(0.5 - Math.abs(z - Math.floor(z)));
+                        if (Math.max(blockX, blockY, blockZ) === blockX) {
+                            if (fromx > x) {
+                                return [Math.floor(x), Math.floor(y), Math.floor(z), "+x"];
+                            } else {
+                                return [Math.floor(x), Math.floor(y), Math.floor(z), "-x"];
+                            }
+                        } else if (Math.max(blockX, blockY, blockZ) === blockY) {
+                            if (fromy > y) {
+                                return [Math.floor(x), Math.floor(y), Math.floor(z), "+y"];
+                            } else {
+                                return [Math.floor(x), Math.floor(y), Math.floor(z), "-y"];
+                            }
+                        } else if (Math.max(blockX, blockY, blockZ) === blockZ) {
+                            if (fromz > z) {
+                                return [Math.floor(x), Math.floor(y), Math.floor(z), "+z"];
+                            } else {
+                                return [Math.floor(x), Math.floor(y), Math.floor(z), "-z"];
+                            }
+                        } else {
+                            return [Math.floor(x), Math.floor(y), Math.floor(z), undefined];
+                        }
+                    }
+                },
             },
         };
 
@@ -545,7 +574,6 @@
                         Render.delFace("-z", x, y, z);
                     }
                 }
-
             },
 
             addUpdate: function (x, y, z) {
@@ -711,6 +739,97 @@
                     new Image(),
                     new Image(),
                 ],
+
+                break: [
+                    [ // b0
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b1
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b2
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b3
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b4
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b5
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b6
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b7
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b8
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b9
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                    [ // b10
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                        new Image(),
+                    ],
+                ],
             },
 
             ui: {
@@ -720,14 +839,24 @@
             },
 
             sys: {
-                blockTexMap: [
-                    "block:air", undefined,
-                    "block:grass", undefined,
-                    "block:dirt", undefined,
-                    "block:stone", undefined,
-                ],
+                blockTexMap: [],
             },
         };
+
+        const Attrs = {
+            blocks: [
+                "block:air", [0, 0.52],
+                "block:grass", [0.05, 0.7],
+                "block:dirt", [0.053, 0.7],
+                "block:stone", [0.005, 0.7],
+                "block:cobblestone", [0.006, 0.7],
+            ],
+        };
+
+        for (let idx = 0; idx < Attrs.blocks.length; idx += 2) {
+            Srcs.sys.blockTexMap.push(Attrs.blocks[idx]);
+            Srcs.sys.blockTexMap.push(undefined);
+        }
 
         Srcs.blocks.grass[0].src = "textures/blocks/grass/side-tl.png";
         Srcs.blocks.grass[1].src = "textures/blocks/grass/side-br.png";
@@ -767,6 +896,84 @@
         Srcs.misc.select[4].src = "textures/misc/select.png";
         Srcs.misc.select[5].src = "textures/misc/select.png";
 
+        Srcs.misc.break[0][0].src = "textures/misc/break-0.png";
+        Srcs.misc.break[0][1].src = "textures/misc/break-0.png";
+        Srcs.misc.break[0][2].src = "textures/misc/break-0.png";
+        Srcs.misc.break[0][3].src = "textures/misc/break-0.png";
+        Srcs.misc.break[0][4].src = "textures/misc/break-0.png";
+        Srcs.misc.break[0][5].src = "textures/misc/break-0.png";
+
+        Srcs.misc.break[1][0].src = "textures/misc/break-1.png";
+        Srcs.misc.break[1][1].src = "textures/misc/break-1.png";
+        Srcs.misc.break[1][2].src = "textures/misc/break-1.png";
+        Srcs.misc.break[1][3].src = "textures/misc/break-1.png";
+        Srcs.misc.break[1][4].src = "textures/misc/break-1.png";
+        Srcs.misc.break[1][5].src = "textures/misc/break-1.png";
+
+        Srcs.misc.break[2][0].src = "textures/misc/break-2.png";
+        Srcs.misc.break[2][1].src = "textures/misc/break-2.png";
+        Srcs.misc.break[2][2].src = "textures/misc/break-2.png";
+        Srcs.misc.break[2][3].src = "textures/misc/break-2.png";
+        Srcs.misc.break[2][4].src = "textures/misc/break-2.png";
+        Srcs.misc.break[2][5].src = "textures/misc/break-2.png";
+
+        Srcs.misc.break[3][0].src = "textures/misc/break-3.png";
+        Srcs.misc.break[3][1].src = "textures/misc/break-3.png";
+        Srcs.misc.break[3][2].src = "textures/misc/break-3.png";
+        Srcs.misc.break[3][3].src = "textures/misc/break-3.png";
+        Srcs.misc.break[3][4].src = "textures/misc/break-3.png";
+        Srcs.misc.break[3][5].src = "textures/misc/break-3.png";
+
+        Srcs.misc.break[4][0].src = "textures/misc/break-4.png";
+        Srcs.misc.break[4][1].src = "textures/misc/break-4.png";
+        Srcs.misc.break[4][2].src = "textures/misc/break-4.png";
+        Srcs.misc.break[4][3].src = "textures/misc/break-4.png";
+        Srcs.misc.break[4][4].src = "textures/misc/break-4.png";
+        Srcs.misc.break[4][5].src = "textures/misc/break-4.png";
+
+        Srcs.misc.break[5][0].src = "textures/misc/break-5.png";
+        Srcs.misc.break[5][1].src = "textures/misc/break-5.png";
+        Srcs.misc.break[5][2].src = "textures/misc/break-5.png";
+        Srcs.misc.break[5][3].src = "textures/misc/break-5.png";
+        Srcs.misc.break[5][4].src = "textures/misc/break-5.png";
+        Srcs.misc.break[5][5].src = "textures/misc/break-5.png";
+
+        Srcs.misc.break[6][0].src = "textures/misc/break-6.png";
+        Srcs.misc.break[6][1].src = "textures/misc/break-6.png";
+        Srcs.misc.break[6][2].src = "textures/misc/break-6.png";
+        Srcs.misc.break[6][3].src = "textures/misc/break-6.png";
+        Srcs.misc.break[6][4].src = "textures/misc/break-6.png";
+        Srcs.misc.break[6][5].src = "textures/misc/break-6.png";
+
+        Srcs.misc.break[7][0].src = "textures/misc/break-7.png";
+        Srcs.misc.break[7][1].src = "textures/misc/break-7.png";
+        Srcs.misc.break[7][2].src = "textures/misc/break-7.png";
+        Srcs.misc.break[7][3].src = "textures/misc/break-7.png";
+        Srcs.misc.break[7][4].src = "textures/misc/break-7.png";
+        Srcs.misc.break[7][5].src = "textures/misc/break-7.png";
+
+        Srcs.misc.break[8][0].src = "textures/misc/break-8.png";
+        Srcs.misc.break[8][1].src = "textures/misc/break-8.png";
+        Srcs.misc.break[8][2].src = "textures/misc/break-8.png";
+        Srcs.misc.break[8][3].src = "textures/misc/break-8.png";
+        Srcs.misc.break[8][4].src = "textures/misc/break-8.png";
+        Srcs.misc.break[8][5].src = "textures/misc/break-8.png";
+
+        Srcs.misc.break[9][0].src = "textures/misc/break-9.png";
+        Srcs.misc.break[9][1].src = "textures/misc/break-9.png";
+        Srcs.misc.break[9][2].src = "textures/misc/break-9.png";
+        Srcs.misc.break[9][3].src = "textures/misc/break-9.png";
+        Srcs.misc.break[9][4].src = "textures/misc/break-9.png";
+        Srcs.misc.break[9][5].src = "textures/misc/break-9.png";
+
+        Srcs.misc.break[10][0].src = "textures/misc/break-10.png";
+        Srcs.misc.break[10][1].src = "textures/misc/break-10.png";
+        Srcs.misc.break[10][2].src = "textures/misc/break-10.png";
+        Srcs.misc.break[10][3].src = "textures/misc/break-10.png";
+        Srcs.misc.break[10][4].src = "textures/misc/break-10.png";
+        Srcs.misc.break[10][5].src = "textures/misc/break-10.png";
+
+
         Srcs.ui.crosshair[0].src = "textures/ui/crosshair.png";
 
 
@@ -778,7 +985,6 @@
 
         // =======================================================================================
         // ------- WORLD -------
-        // keep World.reset() at the top
 
         World.reset(World.xsize, World.ysize, World.zsize);
 
