@@ -86,6 +86,14 @@
                     System.hasStarted = true;
                     startTime = Date.now() // 200 * bpm * Date.now() - startTime / 60000
                     tick();
+                } else {
+                    if (Player.currSide === "up") {
+                        Player.currSide = "down";
+                    } else if (Player.currSide === "down") {
+                        Player.currSide = "up";
+                    } else {
+                        console.log("Player: Invalid currSide");
+                    }
                 }
             }
 
