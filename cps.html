@@ -25,6 +25,7 @@
         function clicked() {
             clicks += 1
         }
+        document.addEventListener("keydown", clicked);
         setInterval(function () {
             document.getElementById("cpsdisplay").innerHTML = "CPS: " + cps;
         }, 16);
