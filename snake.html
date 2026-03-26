@@ -63,7 +63,7 @@
 
         // Grid size and movement speed
         const gridSize = 20;
-        let gameSpeed = 100; // Milliseconds per frame
+        let gameSpeed = 125; // Milliseconds per frame
 
         // Initialize game variables
         let snake = [
@@ -143,7 +143,7 @@
             // Check if snake ate food
             const didEatFood = snake[0].x === foodX && snake[0].y === foodY;
             if (didEatFood) {
-                score += 10;
+                score += 1;
                 scoreElement.textContent = score;
                 
                 // Slightly increase speed as score goes up
