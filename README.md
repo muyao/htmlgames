@@ -1,1 +1,1 @@
-More non-games than games here
+Visit https://muyao.app/ for all games
