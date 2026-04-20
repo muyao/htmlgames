@@ -33,7 +33,7 @@
 
     <div id="instructions">
         <h2>Flappy Cube</h2>
-        <p>Press <strong>SPACEBAR</strong> to jump.</p>
+        <p>Press <strong>SPACEBAR or CLICK</strong> to jump.</p>
     </div>
 
     <canvas id="gameCanvas" width="400" height="500"></canvas>
@@ -157,6 +157,15 @@
             }
         });
 
+        document.addEventListener("click", (e) => {
+                e.preventDefault(); 
+                if (gameOver) {
+                    resetGame();
+                } else {
+                    bird.flap();
+                }
+        });
+
         // Main game loop
         function loop() {
             if (gameOver) {
@@ -174,7 +183,7 @@
                 ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
                 
                 ctx.font = "16px Arial";
-                ctx.fillText("Press SPACEBAR to restart", canvas.width / 2, canvas.height / 2 + 60);
+                ctx.fillText("Press SPACEBAR or CLICK to restart", canvas.width / 2, canvas.height / 2 + 60);
                 return; // Stop requesting animation frames
             }
 
