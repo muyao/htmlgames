@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Preview</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+	body {
+		background-color: black;
+		color: white;
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		margin: 0;
+		margin-left: 40px;
+		margin-right: 40px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		overflow: hidden
+	}
+
+	h1 {
+		margin-top: 60px;
+	}
+
+	textarea {
+		font-family: monospace;
+		font-size: 20px;
+		height: 480px;
+	}
+</style>
+</head>
+<body>
+<h1>Paste HTML below</h1>
+<textarea></textarea>
+<script>
+	document.querySelector("textarea").addEventListener("keydown", function(e) {
+		if ("Escape" === e.key) {
+			e.preventDefault();
+			let t = new Blob([this.value], {
+					type: "text/html"
+				}),
+				n = URL.createObjectURL(t);
+			window.open(n, "_blank")
+		}
+	})
+</script>
+</body>
+</html>
