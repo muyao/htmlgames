@@ -1,48 +1,74 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<title>Preview</title>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-	body {
-		background-color: black;
-		color: white;
-		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-		margin: 0;
-		margin-left: 40px;
-		margin-right: 40px;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		overflow: hidden
-	}
-
-	h1 {
-		margin-top: 60px;
-	}
-
-	textarea {
-		font-family: monospace;
-		font-size: 20px;
-		height: 480px;
-	}
-</style>
-</head>
-<body>
-<h1>Paste HTML below</h1>
-<textarea></textarea>
-<script>
-	document.querySelector("textarea").addEventListener("keydown", function(e) {
-		if ("Escape" === e.key) {
-			e.preventDefault();
-			let t = new Blob([this.value], {
-					type: "text/html"
-				}),
-				n = URL.createObjectURL(t);
-			window.open(n, "_blank")
+	<title>Preview</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<style>
+		body {
+			background-color: black;
+			color: white;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			padding: 60px 40px 60px 40px;
+			display: flex;
+			flex-direction: column;
+			justify-content: flex-start;
+			overflow: hidden
 		}
-	})
-</script>
+
+		
+		iframe, textarea {
+			width: 720px;
+			height: 1000px;
+			margin-left: 10px;
+			margin-bottom: 60px;
+		}
+
+		iframe {
+			margin-left: 10px;
+			background-color: white;
+			color: black;
+			border: 2px solid white;
+			border-radius: 2px;
+		}
+
+		textarea {
+			font-family: monospace;
+			font-size: 20px;
+			margin-right: 10px;
+			resize: none;
+		}
+
+		.flex-row {
+			display: flex;
+			flex-direction: row;
+			justify-content: flex-start;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Write HTML below</h1>
+	<div class="flex-row">
+		<textarea></textarea>
+		<iframe></iframe>
+	</div>
+	<script>
+		(() => {
+			let oldval = null;
+			setInterval(() => {
+				if (document.querySelector("textarea").value === oldval) return;
+				oldval = document.querySelector("textarea").value
+				const utf8Bytes = new TextEncoder().encode(
+					document.querySelector("textarea").value
+				);
+				document.querySelector("iframe").src = "data:text/html;base64," + btoa(
+					String.fromCodePoint(...utf8Bytes)
+				);
+			}, 200);
+		})();
+	</script>
 </body>
+
 </html>
